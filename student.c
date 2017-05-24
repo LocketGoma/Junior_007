@@ -1,7 +1,5 @@
 #include <stdio.h>		// 필요한 header file 추가 가능
-#include "student.h"
-// 일단, 실행라인을 안쓰는거로 제작하고, 그담에 바꿀것.
- 
+
 //
 // readPage() 함수는 레코드 파일에서 주어진 pagenum(=0, 1, 2, ...)에 해당하는 page를
 // 읽어서 pagebuf가 가리키는 곳에 저장하는 역할을 수행한다. 정상적인 수행을 한 경우
@@ -45,27 +43,10 @@ void printRecord(const STUDENT *s, int n);
 //
 FIELD getField(char *fieldname);
 
-//헤더설명 짱기네...
-//오 삭제 없어
-
 int main(int argc, char *argv[])
 {
 	FILE *fp;						// 모든 file processing operation은 C library를 사용할 것.
-	fp=fopen("students.dat","w+b");
-	
-	//아래 코드는 argv[], 헤더 인풋으로 변경되어야 합니다.
-	STUDENT temp;
-	
-	scanf("%s",temp.id);
-	scanf("%s",temp.name);
-	scanf("%s",temp.dept);
-	scanf("%s",temp.year);
-	scanf("%s",temp.addr);
-	scanf("%s",temp.phone);
-	scanf("%s",temp.email);
-	
-	writeRecord(fp,temp);
-	
+
 	return 1;
 }
 
@@ -80,107 +61,3 @@ void printRecord(const STUDENT *s, int n)
 		printf("%s#%s#%s#%s#%s#%s#%s\n", s[i].id, s[i].name, s[i].dept, s[i].year, s[i].addr, s[i].phone, s[i].email);
 	}
 }
-
-//void parse_Record(); 
-int readPage(FILE *fp, char *pagebuf, int pagenum){
-}
-int getNextRecord(const char *pagebuf, char *recordbuf){
-}
-void unpack(const char *recordbuf, STUDENT *s){
-	char *temp;
-	int size;
-	int count;
-	int j;
-	count = 0;
-	j=0;
-	size = sizeof(recordbuf)/sizeof(recordbuf[0]);
-	temp=(char)malloc(sizeof(char)*31); // 최대치
-	for (int i=0;i<size;i++){		//or MAX_RECORD_SIZE
-		if ((int)recordbuf[i]==35){
-			if (count==0){
-				//학번 넣고
-			}
-			else if(count==1){
-				//이름 넣고
-			}
-			else if(count==2){
-				//학과 넣고
-			}
-			else if(count==3){
-				//주소 넣고
-			}
-			else if(count==4){
-				//이메일 주소 넣고
-			} //7이네?			
-			else if(count==5){
-			}
-			else if(count==6){
-			}
-			else
-				printf("언팩 에러 발생\n");
-			j=0;
-			count++;
-		}
-		else{
-			temp[j]=recordbuf[i];
-			j++
-		}	
-			
-	}
-	
-}
-//1 페이지 = [헤더][레코드][레코드][레코드]
-//헤더 = [레코드 개수][레코드사이즈][레코드offset][레코드길이][레코드offset][레코드길이]... = 100byte
-//레코드 = [7개 데이터]*n = 924byte
-int writeRecord(FILE *fp, const STUDENT *s){
-	int record_count;	//지금 도착한 페이지의 레코드가 몇개인가.
-	int last_offset;	//마지막 페이지 offset
-	int last_len;		//마지막 페이지 length
-	char *buf;
-	buf = (char)melloc(sizeof(s));			//되나
-	record_count=0;
-	
-	pack(buf,s);
-	
-	if(buf!=NULL){
-		strlen(buf);
-		//헤더 페이지, 헤더 페이지 수 확인.
-		fseek(fp, PAGE_SIZE, SEEK_SET);	// 일단 다음 페이지로 가고.
-		//while(빈 페이지 발견시까지)
-		// if (레코드 사이즈 + strlen(buf) <= 924)	
-		//페이지의 헤더를 읽음. (#record)
-		fseek(fp,4+4*record_count-1,SEEK_CUR);
-		last_offset=//offset 읽음
-		last_len=//length 읽음
-		
-		//쓰기
-		next_offset(2byte) = last_offset+last_len;
-		next_size(2byte) = strlen(buf);
-		
-		//현재 페이지의 맨 앞으로 되돌아감.
-		fseek;//
-		//#record 수정
-		//#TRS 수정
-		fseek(fp,96,SEEK_CUR);
-		fseek(fp,next_offset,SEEK_CUR);
-		fwrite((void *)buf, next_size, 1, fp);
-		
-		return 1;
-	}
-	else
-		return 0;
-	
-	
-}
-void pack(char *recordbuf, const STUDENT *s){
-	//http://mwultong.blogspot.com/2006/10/c-strcat.html
-	sprintf(recordbuf,"%s#%s#%s#%s#%s#%s#%s\n",s.id,s.name,s.dept,s.year,s.addr,s.phone,s.email);
-	
-}
-void search(FILE *fp, FIELD f, char *keyval){
-}
-void printRecord(const STUDENT *s, int n){
-	
-	
-}
-
