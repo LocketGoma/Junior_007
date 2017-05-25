@@ -19,4 +19,16 @@ typedef struct _STUDENT
 	char email[27];		// 이메일 주소
 } STUDENT;
 
+typedef struct _HEADSIZE		//각 레코드의 헤더-첫번째 2개 읽기용.
+{
+	short records;	//#records, 레코드 개수
+	short size;		//레코드 사이즈
+}HEADSIZE;
+
+typedef struct _OFFSET			//각 레코드에 있는 offset/len 읽기용
+{
+	short offset;			//offset값
+	short length;			//length값
+}OFFSET;
+
 #endif
