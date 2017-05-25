@@ -1,6 +1,7 @@
 #include <stdio.h>		// 필요한 header file 추가 가능
 #include <stdlib.h>
 #include <io.h>
+#include <string.h>
 //#include <unistd.h>	//<- 리눅스용
 #include "student.h"
 
@@ -63,7 +64,7 @@ int main(int argc, char *argv[])
 {
 	FILE *fp;						// 모든 file processing operation은 C library를 사용할 것.
 
-	char *file = "students.dat";
+	char file[30];
 	if (access("students.dat", 0) != 0) {
 		printf("미존재");
 		fp = fopen("students.dat", "a+b");
@@ -74,56 +75,81 @@ int main(int argc, char *argv[])
 	}
 //	fp = fopen("students.dat", "a+b");
 
-	//아래 코드는 argv[], 헤더 인풋으로 변경되어야 합니다.
 	STUDENT temp;
-	memset(&temp, 0, sizeof(STUDENT));
+	*temp.id = (char *)malloc(sizeof(char) * 9);
+	*temp.name = (char *)malloc(sizeof(char) * 21);
+	*temp.dept = (char *)malloc(sizeof(char) * 21);
+	*temp.year = (char *)malloc(sizeof(char) * 2);
+	*temp.addr = (char *)malloc(sizeof(char) * 31);
+	*temp.phone = (char *)malloc(sizeof(char) * 16);
+	*temp.email = (char *)malloc(sizeof(char) * 27);
 
-	strcpy(temp.id,"20101234");
-	strcpy(temp.name,"gildong");
-	strcpy(temp.dept,"computer");
-	strcpy(temp.year,"3");
-	strcpy(temp.addr,"dongjak");
-	strcpy(temp.phone,"010-585-1234");
-	strcpy(temp.email,"gdhong@ssu.ac.kr");
+	char *field;
+	char *find;
+	field = (char *)malloc(sizeof(char) * 5);
+	find = (char *)malloc(sizeof(char) * 31);
+
+//	temp = malloc(sizeof(STUDENT));
+//	memset(&temp, 0, sizeof(STUDENT));
+
+
+//	strcpy(temp.id,"20101234");
+//	strcpy(temp.name,"gildong");
+//	strcpy(temp.dept,"computer");
+//	strcpy(temp.year,"3");
+//	strcpy(temp.addr,"dongjak");
+//	strcpy(temp.phone,"010-585-1234");
+//	strcpy(temp.email,"gdhong@ssu.ac.kr");
+
+
+//	printf("id:%s", temp.id);
+//	char * buf;
+//	buf = (char *)malloc(sizeof(STUDENT));
+//	pack(buf, &temp);
+//	printf("%s\n", buf);
 
 	
+	if (argv[1][1] == 'i') {
+		printf("input\n");
+		strcpy(temp.id, argv[3]);
+		strcpy(temp.name, argv[4]);
+		strcpy(temp.dept, argv[5]);
+		strcpy(temp.year, argv[6]);
+		strcpy(temp.addr, argv[7]);
+		strcpy(temp.phone, argv[8]);
+		strcpy(temp.email, argv[9]);
+			writeRecord(fp,&temp);
+	}
+	else if (argv[1][1] == 's') {
+		//파싱 프로세스
+		printf("search\n");
+		int i = 0;
+		int j = 0;
+		for (; i < 36; i++) {
+			if (argv[3][i] != 61)
+				field[i] = argv[3][i];
+			else
+				break;
+		}
+		i++;
+		while (argv[3][i] != NULL) {
+			find[j] = argv[3][i];
+			j++;
+			i++;
+		}
+		//파싱 끝
 
-	/*
-	scanf("%s",temp.id);
-	scanf("%s",temp.name);
-	scanf("%s",temp.dept);
-	scanf("%s",temp.year);
-	scanf("%s",temp.addr);
-	scanf("%s",temp.phone);
-	scanf("%s",temp.email);
-	*/
-	/**/
-	/*
-	temp->id = argv[0];
-	temp->name = argv[1];
-	temp->dept = argv[2];
-	temp->year = argv[3];
-	temp->addr = argv[4];
-	temp->phone = argv[5];
-	temp->email = argv[6];
-	*/
+		printf("field : %s, find : %s\n", field, find);
+		printf("%d",getField(field));				// 잘됨
+		search(fp, getField(field), find);
+	}
 
-	writeRecord(fp,&temp);
+
 	
 	return 1;
 }
 
-void printRecord(const STUDENT *s, int n)
-{
-	int i;
 
-	printf("NumOfRecords = %d\n", n);
-	
-	for(i=0; i<n; i++)
-	{
-		printf("%s#%s#%s#%s#%s#%s#%s\n", s[i].id, s[i].name, s[i].dept, s[i].year, s[i].addr, s[i].phone, s[i].email);
-	}
-}
 
 //void parse_Record(); 
 int readPage(FILE *fp, char *pagebuf, int pagenum){
@@ -139,8 +165,41 @@ int getNextRecord(const char *pagebuf, char *recordbuf){
 	static int recordnum = 0;	//몇번 레코드인가
 	static int pagepoint = 0;	//페이지버퍼에서 몇번째인가.
 	
+	int ret = 0;
+	int rotate=0;
 
-	recordbuf=pagebuf;
+	if(recordnum==0)
+	for (int i = 0; i < MAX_RECORD_SIZE; i++) {
+		recordbuf[i] = pagebuf[100 + i];
+		if (pagebuf[HEADER_SIZE + i] == 35)
+			ret++;
+		if (ret == 7)
+			break;
+	}
+	else
+		for (int i = 0; i < PAGE_SIZE - HEADER_SIZE; i++) {
+			if (pagebuf[HEADER_SIZE + i] == 35) {
+				ret++;
+			}
+			if (ret == 7) {
+				rotate++;
+				ret = 0;
+			}
+			else if (rotate == recordnum) {
+				for (int j = 0; j < MAX_RECORD_SIZE; j++) {
+					recordbuf[j] = pagebuf[HEADER_SIZE + i];
+					i++;
+					if (pagebuf[HEADER_SIZE + i] == 35)
+						ret++;
+					if (ret == 7) {
+						rotate = -1;
+						break;
+					}
+				}
+			}
+			else if (rotate == -1)
+				break;
+		}
 
 	recordnum++;
 	return 1;
@@ -341,6 +400,19 @@ void pack(char *recordbuf, const STUDENT *s){
 	
 }
 void search(FILE *fp, FIELD f, char *keyval){
+	
+
+}
+void printRecord(const STUDENT *s, int n)
+{
+	int i;
+
+	printf("NumOfRecords = %d\n", n);
+
+	for (i = 0; i< n; i++)
+	{
+		printf("%s#%s#%s#%s#%s#%s#%s\n", s[i].id, s[i].name, s[i].dept, s[i].year, s[i].addr, s[i].phone, s[i].email);
+	}
 }
 
 //필드 리턴. 되는질 모르겠음;
