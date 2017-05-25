@@ -1,7 +1,9 @@
 #include <stdio.h>		// 필요한 header file 추가 가능
 #include <stdlib.h>
 #include <io.h>
+//#include <unistd.h>	//<- 리눅스용
 #include "student.h"
+
 
 #pragma warning(disable: 4996)	// 지우셈
 // 일단, 실행라인을 안쓰는거로 제작하고, 그담에 바꿀것.
@@ -221,6 +223,9 @@ int writeRecord(FILE *fp, const STUDENT *s){
 	char *recordbuf;			//레코드버퍼
 	char *pagebuf;				//리턴
 	int recordsize;
+	int closet;					//꽉 찼었는지 테스트.
+	int start;					//파일포인터 비교, start = ftell(fp) 비교하여 일치하면 => 현재 페이지가 가득찼고, 다음이 없음.
+	int stock;					//페이지 수.
 	unsigned short *pick;
 	HEADSIZE head;				//페이지 헤더 읽는 녀석. 
 	memset(&head, 0, sizeof(HEADSIZE));
@@ -238,34 +243,58 @@ int writeRecord(FILE *fp, const STUDENT *s){
 //	printf("%d\n", recordsize);
 //	fseek(fp, PAGE_SIZE, SEEK_SET);		//헤더 페이지 점프
 
-
+	start = 0;
+	closet = 0;
+	stock = 0;
+	
 	printf("파일포인터 위치1 : %d\n", ftell(fp));
-	while (fp != EOF) {
+	while (fp != EOF) {		
 		fread(pagebuf, PAGE_SIZE, 1, fp);
 		pick = (unsigned short *)pagebuf;
 		head.records = pick[0];
 		head.size = pick[1];
 //		printf("fread 리턴 : %d\n",fread(&head, PAGE_SIZE, 1, fp));
 		printf("%d:%d\n", head.records, head.size);
-//		printf("파일포인터 위치2 : %d\n", ftell(fp));
+		printf("파일포인터 위치2 : %d\n", ftell(fp));
+		if (ftell(fp) != start)
+			closet = 0;
+
 		if (head.records == 0) {	// 빈공간 도달시 => 새로 만들어줘야됨			<- 다시 생각좀.
 			head.records = 1;
-			head.size = strlen(recordbuf);
+			head.size = recordsize;
 			
 			printf("케이스 1\n");
 			break;
 		}
-		else if (head.records == 24) {		// 최대 레코드 수 도달 
+		else if (closet == 1) {
+			printf("케이스 4\n");
+			fclose(fp);
+			memset(pagebuf, 0, sizeof(char)*PAGE_SIZE);
+			head.records = 1;
+			head.size = recordsize;
+			fp = fopen("students.dat", "a+b");
+			closet = 0;
+			break;
+		}
+		else if (head.records == 24) {		// 최대 레코드 수 도달		==> 다음 페이지 로드.
+			printf("케이스 3-1\n");
+			start = ftell(fp);
+			closet = 1;
+			stock++;
 		//	fseek(fp, PAGE_SIZE-4, SEEK_CUR);
 		}
 		else if ((int)head.size + recordsize > PAGE_SIZE - HEADER_SIZE) { 
-		//	fseek(fp, PAGE_SIZE-4, SEEK_CUR);
+			printf("케이스 3-2\n");
+			start = ftell(fp);
+			closet = 1;
+			stock++;
+			//fseek(fp, PAGE_SIZE, SEEK_CUR);
 		}
 		else											//데이터가 들어가있긴한데 쓸순 있음
 		{												//= 빠른 로드
 //			fseek(fp, -PAGE_SIZE, SEEK_CUR);
 //			fread(pagebuf, PAGE_SIZE, 1, fp);
-			fseek(fp, 0, SEEK_SET);
+			fseek(fp, stock, SEEK_SET);
 			head.records++;
 			head.size += strlen(recordbuf);
 			printf("케이스2\n");
@@ -300,7 +329,7 @@ int writeRecord(FILE *fp, const STUDENT *s){
 	}
 	
 
-	printf("결과:%d",writePage(fp, pagebuf, 0));
+	printf("결과:%d",writePage(fp, pagebuf, stock));
 
 	printf("");
 }
