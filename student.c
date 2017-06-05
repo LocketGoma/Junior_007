@@ -52,8 +52,13 @@ void printRecord(const STUDENT *s, int n);
 //
 FIELD getField(char *fieldname);
 
+int init(FILE *fp);					//이니셜라이즈
+int headcontrol(FILE *fp);			//헤드페이지 +1
+int deletehead(FILE *fp, int pagenumber, int recordnumber);	// 삭제시 헤드 수정
+
+
 //헤더설명 짱기네...
-//오 삭제 없어
+//오 삭제 없어				<- 응 아냐
 
 // 1. write 구현			<--
 // 2. read 구현
@@ -68,6 +73,13 @@ int main(int argc, char *argv[])
 	if (access("students.dat", 0) != 0) {
 		printf("미존재");
 		fp = fopen("students.dat", "a+b");
+		init(fp);			//실행시키기
+//		char *buf;
+//		unsigned short *pick;
+//		buf = (char *)malloc(sizeof(char)*PAGE_SIZE);
+//		pick = (unsigned short *)buf;
+//		pick[0] = 1;
+//		fwrite(buf, PAGE_SIZE, 1, fp);
 	}
 	else {
 		printf("존재");
@@ -92,23 +104,21 @@ int main(int argc, char *argv[])
 //	temp = malloc(sizeof(STUDENT));
 //	memset(&temp, 0, sizeof(STUDENT));
 
+	//VS 테스트시
+	strcpy(temp.id,"20101235");
+	strcpy(temp.name,"gildong");
+	strcpy(temp.dept,"computer");
+	strcpy(temp.year,"3");
+	strcpy(temp.addr,"dongjak");
+	strcpy(temp.phone,"010-585-1234");
+	strcpy(temp.email,"gdhong@ssu.ac.kr");
 
-//	strcpy(temp.id,"20101234");
-//	strcpy(temp.name,"gildong");
-//	strcpy(temp.dept,"computer");
-//	strcpy(temp.year,"3");
-//	strcpy(temp.addr,"dongjak");
-//	strcpy(temp.phone,"010-585-1234");
-//	strcpy(temp.email,"gdhong@ssu.ac.kr");
+//	writeRecord(fp, &temp);
 
+	search(fp, 0, "20101235");
 
-//	printf("id:%s", temp.id);
-//	char * buf;
-//	buf = (char *)malloc(sizeof(STUDENT));
-//	pack(buf, &temp);
-//	printf("%s\n", buf);
-
-	
+/*	
+	//argument 사용시.
 	if (argv[1][1] == 'i') {
 		printf("input\n");
 		strcpy(temp.id, argv[3]);
@@ -144,12 +154,46 @@ int main(int argc, char *argv[])
 		search(fp, getField(field), find);
 	}
 
-
+*/
 	
 	return 1;
 }
 
+int init(FILE *fp) {			//이니셜라이즈
+	if (fp == NULL)
+		return 0;
+	char temp[PAGE_SIZE] = "";
+	unsigned short *pick;
+	pick = (unsigned short*)temp;
+	pick[0] = 1;
+	writePage(fp, temp, 0);
 
+	return 1;
+}
+int headcontrol(FILE *fp) {
+	int current;
+	char temp[PAGE_SIZE] = "";
+	unsigned short *pick = 0;
+	if (fp == NULL)
+		return 0;
+	printf("[%d]\n", ftell(fp));
+
+	current = ftell(fp);				//현재 위치 읽고
+	fseek(fp, 0, SEEK_SET);				//헤드페이지 보내고
+	readPage(fp, temp, 0);
+
+	pick = (unsigned short*)temp;		//헤드정보 읽고
+	printf("pick : %d\n", pick[0]);		//헤드 정보 출력좀..
+	pick[0]++;							//헤드값 +1
+	printf("pick after : %d\n", pick[0]);		//after
+	writePage(fp, temp, 0);				//헤드 수정하고
+	fseek(fp, current, SEEK_SET);		//다시 원래 위치로 보내기
+
+	return 1;
+}
+int deletehead(FILE *fp, int pagenumber, int recordnumber) {	//삭제시 헤드 수정용.
+
+}
 
 //void parse_Record(); 
 int readPage(FILE *fp, char *pagebuf, int pagenum){
@@ -161,20 +205,32 @@ int readPage(FILE *fp, char *pagebuf, int pagenum){
 	else
 		return 0;
 }
-int getNextRecord(const char *pagebuf, char *recordbuf){
-	static int recordnum = 0;	//몇번 레코드인가
+int getNextRecord(const char *pagebuf, char *recordbuf){			// 여기서부터 다시 짜세요.
+	static int recordnum = 0;	//몇번 레코드 읽어야하는가
 	static int pagepoint = 0;	//페이지버퍼에서 몇번째인가.
-	
-	int ret = 0;
-	int rotate=0;
+	unsigned short *pick;
+	pick = (unsigned short *)pagebuf;
+
+	int ret = 0;				//0~7
+	int rotate=0;				//몇번레코드 읽고 있는가
 
 	if(recordnum==0)
 	for (int i = 0; i < MAX_RECORD_SIZE; i++) {
 		recordbuf[i] = pagebuf[100 + i];
-		if (pagebuf[HEADER_SIZE + i] == 35)
+//		printf("[i:%d]", i);
+		if (pagebuf[HEADER_SIZE + i] == 35) {
 			ret++;
-		if (ret == 7)
+//			printf("%d번 \n", ret);
+		}
+		if (ret == 7) {
+			recordbuf[i+1] = '\0';
+			rotate++;
+			ret = 0;
 			break;
+		}
+	}
+	else if (recordnum+1 > pick[0]) {
+		return 0;
 	}
 	else
 		for (int i = 0; i < PAGE_SIZE - HEADER_SIZE; i++) {
@@ -184,76 +240,94 @@ int getNextRecord(const char *pagebuf, char *recordbuf){
 			if (ret == 7) {
 				rotate++;
 				ret = 0;
+				//break;
 			}
 			else if (rotate == recordnum) {
 				for (int j = 0; j < MAX_RECORD_SIZE; j++) {
+					printf("[i:%d]", i);
 					recordbuf[j] = pagebuf[HEADER_SIZE + i];
 					i++;
 					if (pagebuf[HEADER_SIZE + i] == 35)
 						ret++;
-					if (ret == 7) {
-						rotate = -1;
+					if (ret == 7) {	
+						recordbuf[j + 1] = '#';
+						recordbuf[j + 2] = '\0';
+						rotate=-1;
 						break;
 					}
 				}
+				break;
 			}
 			else if (rotate == -1)
 				break;
 		}
-
+	
+	printf("레코드 번호 : %d, 로테이트 : %d\n", recordnum, rotate);
 	recordnum++;
 	return 1;
 
 }
-//언팩. 다 짰나?
+//언팩. 다 짰나? <- 아니요
 void unpack(const char *recordbuf, STUDENT *s){
-	char *temp;
+	char temp[31]="";
 	int size;
 	int count;
 	int j;
 	count = 0;
 	j=0;
-	size = sizeof(recordbuf)/sizeof(recordbuf[0]);
-	temp=(char)malloc(sizeof(char)*31); // 최대치
+	size = strlen(recordbuf);
+//	temp=(char *)malloc(sizeof(char)*31); // 최대치
+//	printf("size : %d\n", size);
+	
+
 	for (int i=0;i<size;i++){		//or MAX_RECORD_SIZE
-		if ((int)recordbuf[i]==35){			//'#' 만나면
+//		printf("i = %d", i);
+		if (recordbuf[i]=='#'){			//'#' 만나면
+//			temp[j + 1] = '\0';
+//			printf("\n[%s]/lenght:%d", temp,strlen(temp));
 			if (count==0){
-				*s->id=temp;			//맞아?
+				strcpy(s->id, temp);
 				//학번 넣고
 			}
 			else if(count==1){
-				*s->name=temp;
+				strcpy(s->name, temp);
 				//이름 넣고
 			}
 			else if(count==2){
-				*s->dept = temp;
+				strcpy(s->dept, temp);
 				//학과 넣고
 			}
 			else if(count==3){
-				*s->year = temp;
+				strcpy(s->year, temp);
 				//주소 넣고
 			}
 			else if(count==4){
-				*s->addr = temp;
+				strcpy(s->addr, temp);
 				//주소 넣고
 			} //7이네?			
 			else if(count==5){
-				*s->phone = temp;
+				strcpy(s->phone, temp);
 				//폰번호 넣고
 			}
 			else if(count==6){
-				*s->email = temp;
+				strcpy(s->email, temp);
 				//이메일 주소 넣고
+			}
+			else if (count == 7) {
+				break;
 			}
 			else
 				printf("언팩 에러 발생\n");
 
-			temp = "";
+			temp[0] = "\0";
+//			temp = (char *)malloc(sizeof(char) * 31);
+//			printf("[:%s]\n", temp);
 			j=0;			//뭐임
 			count++;
 		}
 		else{					//'#' 안만나면
 			temp[j]=recordbuf[i];	//데이터 산입
+//			printf("(%c)\n", temp[j]);
 			j++;
 		}	
 			
@@ -285,7 +359,7 @@ int writeRecord(FILE *fp, const STUDENT *s){
 	int closet;					//꽉 찼었는지 테스트.
 	int start;					//파일포인터 비교, start = ftell(fp) 비교하여 일치하면 => 현재 페이지가 가득찼고, 다음이 없음.
 	int stock;					//페이지 수.
-	unsigned short *pick;
+	unsigned short *pick;		// picker
 	HEADSIZE head;				//페이지 헤더 읽는 녀석. 
 	memset(&head, 0, sizeof(HEADSIZE));
 	recordbuf= (char *)malloc(sizeof(char) * MAX_RECORD_SIZE);
@@ -294,20 +368,23 @@ int writeRecord(FILE *fp, const STUDENT *s){
 	pack(recordbuf, s);
 	printf("%s\n", recordbuf);
 	recordsize=strlen(recordbuf);
+
+
 	if (fp == NULL) {
 		printf("에러");
 	}
 	printf("%d\n", strlen(recordbuf));
 
 //	printf("%d\n", recordsize);
-//	fseek(fp, PAGE_SIZE, SEEK_SET);		//헤더 페이지 점프
+	fseek(fp, PAGE_SIZE, SEEK_SET);		//헤더 페이지 점프
 
 	start = 0;
 	closet = 0;
-	stock = 0;
+	stock = 1;				//1로 바꾸기
 	
 	printf("파일포인터 위치1 : %d\n", ftell(fp));
 	while (fp != EOF) {		
+//		headcontrol(fp); // 테스트 구문
 		fread(pagebuf, PAGE_SIZE, 1, fp);
 		pick = (unsigned short *)pagebuf;
 		head.records = pick[0];
@@ -321,17 +398,21 @@ int writeRecord(FILE *fp, const STUDENT *s){
 		if (head.records == 0) {	// 빈공간 도달시 => 새로 만들어줘야됨			<- 다시 생각좀.
 			head.records = 1;
 			head.size = recordsize;
-			
+
+
 			printf("케이스 1\n");
 			break;
 		}
 		else if (closet == 1) {
 			printf("케이스 4\n");
+			headcontrol(fp);			//되려나..
 			fclose(fp);
 			memset(pagebuf, 0, sizeof(char)*PAGE_SIZE);
 			head.records = 1;
 			head.size = recordsize;
+						
 			fp = fopen("students.dat", "a+b");
+
 			closet = 0;
 			break;
 		}
@@ -400,7 +481,81 @@ void pack(char *recordbuf, const STUDENT *s){
 	
 }
 void search(FILE *fp, FIELD f, char *keyval){
+	int pagenum;
+	char *recordbuf;	//레코드 저장
+	char *pagebuf;		//페이지 읽기
+	char *header;		//헤더 읽기
+	int count=0;
+	STUDENT *temp;
+	STUDENT result[100];//100...
+	unsigned short *pick;
+	recordbuf = (char *)malloc(sizeof(char) * MAX_RECORD_SIZE);
+	pagebuf = (char *)malloc(sizeof(char)*PAGE_SIZE);
+	header = (char *)malloc(sizeof(char)*PAGE_SIZE);
+	temp = (STUDENT *)malloc(sizeof(STUDENT));
 	
+	readPage(fp, header, 0);
+	pick = (unsigned short *)header;
+	pagenum = pick[0];
+
+	for (int i=1;i<pagenum+1;i++){
+		readPage(fp, pagebuf, i);
+		while (getNextRecord(pagebuf, recordbuf)) {
+			printf("읽은 레코드 : %s, 길이 : %d\n", recordbuf,strlen(recordbuf));
+			unpack(recordbuf, temp);
+			printf("파싱결과:%s\n", temp->id);
+			switch (f) {
+				case 0: {		//id
+					if (!strcmp(temp->id, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				case 1: {		//name
+					if (!strcmp(temp->name, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				case 2: {		//dept
+					if (!strcmp(temp->dept, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				case 3: {		//year
+					if (!strcmp(temp->year, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				case 4: {		//addr
+					if (!strcmp(temp->addr, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				case 5: {		//phone
+					if (!strcmp(temp->phone, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				case 6: {		//email
+					if (!strcmp(temp->email, keyval)) {
+						result[count++] = *temp;
+					}
+					break;
+				}
+				default: {
+					break;
+				}
+			}
+			memset(recordbuf, 0, MAX_RECORD_SIZE);
+		}
+
+	}
+	printRecord(result, count);
 
 }
 void printRecord(const STUDENT *s, int n)
